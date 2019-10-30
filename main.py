@@ -40,8 +40,18 @@ def write_file(fn, ss):
     f.writelines(ss)
     f.close()
 
-def write_log_header(fn):
-    pass
+def write_log_header():
+    log_fn = log_fn + get_datetime() + '.txt'
+    f = open(log_fn, "w")
+    f.write('{} -- log start\n'.format(get_datetime()))
+    f.colse()
+
+def add_to_log(string):
+    f = open(log_fn, "a")
+    f.write('{} -- {}\n'.format(get_datetime(), string))
+    f.colse()
+
+
 
 def get_datetime():
     return str(dt.now())[:-7]
@@ -68,14 +78,11 @@ def run_cmd(cmd, cwd = None):
 #------------------------------------------------------#
 def run_job(path, pwd, ids):
     path_to_job = pwd + path + '/'
-    print('ids = {}'.format(ids))
-    print('count_jobs = {}'.format(count_jobs(ids)))
     while count_jobs(ids) > max_jobs:
         time.sleep(60)
     cmd_job = cmd + ' ' + path_to_job + job_fn
     (o, e) = run_cmd(cmd_job, cwd = path_to_job)
     id = o.split('.')[0]
-    print('  Run job: {}'.format(id))
     ids.append(id)
     return ids
 
@@ -96,19 +103,21 @@ def main():
     ids = []
     for ct in Cts:
         path1 = 'Ct_=_' + str(ct)
+        add_to_log(path1)
         for at in Ats:
             path2 = '/At_=_' + str(at)
+            add_to_log('  '+path2)
             path = path1 + path2
             s = 'mkdir -p {}'.format(path)
             (o, e) = run_cmd(s)
             for css in Csss:
                 path3 = '/Css_=_' + str(css)
+                add_to_log('    ' + path2)
                 path = path1 + path2 + path3
                 s = 'cp -avr base {}'.format(path)
                 (o, e) = run_cmd(s)
                 set_constants(path, ct, at, css, a2)
                 ids = run_job(path, pwd, ids)
-                print('started job with Ct = {}, At = {}, Css = {}'.format(ct, at, css))
 
 #------------------------------------------------------#
 if __name__ == '__main__':

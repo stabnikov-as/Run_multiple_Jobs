@@ -42,17 +42,15 @@ def write_file(fn, ss):
 
 def write_log_header():
     log_file = log_fn + get_datetime() + '.txt'
-    f = open(log_fn, "w")
+    f = open(log_file, "w")
     f.write('{} -- log start\n'.format(get_datetime()))
-    f.colse()
+    f.close()
     return log_file
 
 def add_to_log(log_file, string):
-    f = open(log_fn, "a")
+    f = open(log_file, "a")
     f.write('{} -- {}\n'.format(get_datetime(), string))
-    f.colse()
-
-
+    f.close()
 
 def get_datetime():
     return str(dt.now())[:-7].replace(' ', '_')

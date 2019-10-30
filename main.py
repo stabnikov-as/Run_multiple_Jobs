@@ -3,7 +3,7 @@ import os
 import time
 import subprocess
 import shlex
-
+import datetime.datetime as dt
 
 #----------------------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------Constant-Values---------------------------------------------------------#
@@ -13,10 +13,19 @@ Csss = [0.4]#, 0.6]#, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0
 a2  = 0.99#[]
 #----------------------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------Filenames-and-other-constants-------------------------------------------#
-cmd		= 'sbatch'
-job_fn	= 'tr_bl.pbs'#'matr.slrm'
-d_file  = 'd_uduct.in'
+#----------------------------------------------------------------and-magic-numbers-------------------------------------------------#
+
+#-----Run_jobs-------#
 cmd     = 'qsub' # 'sbatch'
+job_fn	= 'tr_bl.pbs'#'matr.slrm'
+
+#-------files-----#
+d_file  = 'd_uduct.in'
+log_fn  = 'log'
+
+#------Max-Number-of-processes-at-the-same-time-----#
+max_jobs = 6
+
 
 #------------------------------------------------------#
 def read_file(fn):
@@ -31,6 +40,11 @@ def write_file(fn, ss):
     f.writelines(ss)
     f.close()
 
+def write_log_header(fn):
+    pass
+
+def get_datetime():
+    return str(dt.now())[:-7]
 #------------------------------------------------------#
 def set_constants(path, ct, at, css, a2):
     in_fname = path + '/' + d_file
@@ -56,7 +70,7 @@ def run_job(path, pwd, ids):
     path_to_job = pwd + path + '/'
     print('ids = {}'.format(ids))
     print('count_jobs = {}'.format(count_jobs(ids)))
-    while count_jobs(ids) > 2:
+    while count_jobs(ids) > max_jobs:
         time.sleep(60)
     cmd_job = cmd + ' ' + path_to_job + job_fn
     (o, e) = run_cmd(cmd_job, cwd = path_to_job)

@@ -97,12 +97,13 @@ def count_jobs(ids):
 #------------------------------------------------------#
 def main():
     a2 = a2s[0]
+    i = 0
     cmd_path = 'pwd'
     (o, e) = run_cmd(cmd_path)
     pwd = o.split('\n')[0]+'/'
     log_file = write_log_header()
     total_tasks = len(Ats) * len(Cts) * len(Csss) * len(a2s)
-    add_to_log('amount of jobs = {}'.format(total_tasks))
+    add_to_log(log_file, 'amount of jobs = {}'.format(total_tasks))
     ids = []
     for ct in Cts:
         path1 = 'Ct_=_' + str(ct)
@@ -114,8 +115,9 @@ def main():
             s = 'mkdir -p {}'.format(path)
             (o, e) = run_cmd(s)
             for css in Csss:
+                i += 1
                 path3 = '/Css_=_' + str(css)
-                add_to_log(log_file, '    ' + path3[1:])
+                add_to_log(log_file, '    ' + path3[1:] + 'job #{} out of {}'.format(i, total_tasks))
                 path = path1 + path2 + path3
                 s = 'cp -avr base {}'.format(path)
                 (o, e) = run_cmd(s)

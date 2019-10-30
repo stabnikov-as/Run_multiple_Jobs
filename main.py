@@ -41,12 +41,13 @@ def write_file(fn, ss):
     f.close()
 
 def write_log_header():
-    log_fn = log_fn + get_datetime() + '.txt'
+    log_file = log_fn + get_datetime() + '.txt'
     f = open(log_fn, "w")
     f.write('{} -- log start\n'.format(get_datetime()))
     f.colse()
+    return log_file
 
-def add_to_log(string):
+def add_to_log(log_file, string):
     f = open(log_fn, "a")
     f.write('{} -- {}\n'.format(get_datetime(), string))
     f.colse()
@@ -100,19 +101,20 @@ def main():
     cmd_path = 'pwd'
     (o, e) = run_cmd(cmd_path)
     pwd = o.split('\n')[0]+'/'
+    log_file = write_log_header()
     ids = []
     for ct in Cts:
         path1 = 'Ct_=_' + str(ct)
-        add_to_log(path1)
+        add_to_log(log_file, path1)
         for at in Ats:
             path2 = '/At_=_' + str(at)
-            add_to_log('  '+path2)
+            add_to_log(log_file, '  '+path2[1:])
             path = path1 + path2
             s = 'mkdir -p {}'.format(path)
             (o, e) = run_cmd(s)
             for css in Csss:
                 path3 = '/Css_=_' + str(css)
-                add_to_log('    ' + path2)
+                add_to_log(log_file, '    ' + path3[1:])
                 path = path1 + path2 + path3
                 s = 'cp -avr base {}'.format(path)
                 (o, e) = run_cmd(s)

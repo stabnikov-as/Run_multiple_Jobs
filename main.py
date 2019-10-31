@@ -27,16 +27,17 @@ a2s  = [0.45]
 cmd     = 'qsub' # 'sbatch' # Command to start a new job
 job_fn	= 'tr_bl.pbs'#'matr.slrm' # File that starts the job
 kill_cmd = 'qdel'    # Command to kill process using it's id
+queue_cmd = 'q'  # Command to list running jobs
 
 #-------files-----#
 d_file  = 'd_uduct.in' # Menu file for the job
 log_fn  = 'log' + get_datetime() + '.txt' # Name of log output file
 exit_fn = 'exit.in' # Name of file to control the exit from the program (analogous to keyboard.cfg)
-base_dir = 'base'
-code_fn = 's_tr_bl-r8'
-code_dir = 'code'
-grid_fn = 'Grid_tbl.blk'
-grid_dir = 'grid'
+base_dir = 'base' # Directory for base of the tasks, without code and grid
+code_fn = 's_tr_bl-r8' # Filename for NTS code executable, the program will create a link without copying it
+code_dir = 'code' # Directory name for code
+grid_fn = 'Grid_tbl.blk' # Filename for grid .blk file, the program will create a link without copying it
+grid_dir = 'grid' # Directory name for grid
 
 #------Magic-numbers-----#
 max_jobs   = 6  # Maximum number of running jobs
@@ -106,6 +107,12 @@ def set_constants(path, ct, at, css, a2):
 
 #------------------------------------------------------#
 def run_cmd(cmd, cwd = None):
+    '''
+    Function for running Linux command
+    :param cmd: str, containing the command
+    :param cwd: str, containing cwd attribute the path to directory from where to run the command
+    :return: tuple of 2 str, command output and error code
+    '''
     command = shlex.split(cmd)
     p = subprocess.Popen(command,
 	stdout=subprocess.PIPE, stderr=subprocess.PIPE, cwd = cwd)
@@ -114,90 +121,130 @@ def run_cmd(cmd, cwd = None):
 
 #------------------------------------------------------#
 def run_job(path, pwd, ids):
-    path_to_job = pwd + path + '/'
-    cmd_job = cmd + ' ' + path_to_job + job_fn
-    (o, e) = run_cmd(cmd_job, cwd = path_to_job)
-    id = o.split('.')[0]
-    ids[id] = path
+    '''
+    Runs NTS code jobs
+    :param path: str, relative path to job location
+    :param pwd: str, absolute path to directory from where the python script is run
+    :param ids: dict {jobid(int): path(str}, dictionary of currently running job ids that were run from this script
+    with relative paths to their locations
+    :return: dict {jobid(int): path(str}: updated ids dict, containing new job
+    '''
+    path_to_job = pwd + path + '/' # Constructiong absolute path to the job to queue
+    cmd_job = cmd + ' ' + path_to_job + job_fn # Constructing the command to run to run the job
+    (o, e) = run_cmd(cmd_job, cwd = path_to_job) # Running the command, with cwd attribute
+    id = o.split('.')[0] # Parsing output to get new job id
+    ids[id] = path # adding new id and path to ids
     return ids
 
 #------------------------------------------------------#
 def check_exit(ids):
-    s = read_file(exit_fn)
-    if s[0].rstrip(' \n').lstrip(' ') == '2':
+    '''
+    Checks exit_fn file for:
+    '1' - kill script, don't kill running jobs
+    or
+    '2'  - kill script and running jobs
+    and then exits accordingly, if found
+    :param ids: dict {jobid(int): path(str}, dictionary of currently running job ids that were run from this script
+    with relative paths to their locations
+    :return:
+    '''
+    s = read_file(exit_fn) # read exit_fn file
+    if s[0].rstrip(' \n').lstrip(' ') == '2': # If it contains 2 exit and kill all jobs
         add_to_log('--------------------------------')
         add_to_log('--------------------------------')
-        add_to_log('Program exited due to user input')
+        add_to_log('Program exited due to user input')   # Header to log
         add_to_log('----------Jobs killed:----------')
-        cmd = kill_cmd
-        for id in ids:
-            cmd+= ' ' + id
-            add_to_log('{} {}'.format(id, ids[id]))
-        (o, e) = run_cmd(cmd)
+        cmd = kill_cmd # Initialize kill comand
+        for id in ids: # For all currently running jobs
+            cmd+= ' ' + id # Add id to kill list
+            add_to_log('{} {}'.format(id, ids[id])) # List job in log
+        (o, e) = run_cmd(cmd) # Kill jobs
         add_to_log('--------End-of-program.---------')
-        sys.exit()
-    elif s[0].rstrip(' \n').lstrip(' ') == '1':
+        sys.exit() # End script
+    elif s[0].rstrip(' \n').lstrip(' ') == '1': # If it contains 2 exit and kill all jobs
         add_to_log('--------------------------------')
         add_to_log('--------------------------------')
-        add_to_log('Program exited due to user input')
+        add_to_log('Program exited due to user input') # Header to log
         add_to_log('--------No-jobs-killed.---------')
         add_to_log('--------Remaining-jobs.---------')
-        for id in ids:
-            add_to_log('{} {}'.format(id, ids[id]))
+        for id in ids: # For all currently running jobs
+            add_to_log('{} {}'.format(id, ids[id])) # List job in log
         add_to_log('--------End-of-program.---------')
-        sys.exit()
+        sys.exit() # End script
 
 #------------------------------------------------------#
 def count_jobs(ids):
-    num_jobs = 0
-    s = 'q'
-    (o, e) = run_cmd(s)
-    n = o.split('\n')
-    for job in n[:-1]:
-        if job.split()[0] in ids and job.split()[1] != 'C': num_jobs += 1
+    '''
+    Counts currently running jobs
+    :param ids: dict {jobid(int): path(str}, dictionary of currently running job ids that were run from this script
+    with relative paths to their locations
+    :return: int, number of running jobs
+    '''
+    num_jobs = 0 # Initialize number of jobs
+    (o, e) = run_cmd(queue_cmd) # run command for queue currently running tasks
+    n = o.split('\n') # Parse output into strings
+    for job in n[2:-1]: # For all jobs listed by command s
+        if job.split()[0] in ids and job.split()[1] != 'C': num_jobs += 1 # If the job is in ids (was launched by this script) and is not complete ('C' status) add to count
     return num_jobs
 
 #------------------------------------------------------#
 def cleanse_ids(ids):
-    jobs = []
-    new_ids = ids.copy()
-    s = 'q'
-    (o, e) = run_cmd(s)
-    n = o.split('\n')
-    for job in n[2:-1]:
-        if job.split()[1] != 'C':
-            jobs.append(job.split()[0])
-    for id in ids:
-        if not id in jobs:
-            new_ids.pop(id)
-    ids = new_ids.copy()
+    '''
+    Deletes jobs that are already finished from ids dict
+    :param ids: dict {jobid(int): path(str}, dictionary of currently running job ids that were run from this script
+    with relative paths to their locations
+    :return: updated ids dict
+    '''
+    jobs = [] # initialize list of jobs
+    new_ids = ids.copy() # Copy ids dict to be able to macke changes
+    (o, e) = run_cmd(queue_cmd) # run command for queue currently running tasks
+    n = o.split('\n') # Parse output into strings
+    for job in n[2:-1]: # For all jobs listed by command s
+        if job.split()[1] != 'C': # If the job isn't finished
+            jobs.append(job.split()[0]) # Add to list of currently running jobs
+    for id in ids: # For all jobs in ids
+        if not id in jobs: # If it is not running
+            new_ids.pop(id) # Remove in from the copy
+    ids = new_ids.copy() # Assign modified copy to ids
     return ids
 
+#------------------------------------------------------#
 def copy_data(pwd, path):
-    s = 'cp -avr {} {}'.format(base_dir, path)
+    '''
+    Copies base directory along with links for code and grid
+    :param pwd: str, absolute path to directory from where the python script is run
+    :param path: str, path to the directory where to copy the files
+    :return:
+    '''
+    s = 'cp -avr {} {}'.format(base_dir, path) # copy the base directory
     (o, e) = run_cmd(s)
-    s = 'ln -s {3}{0}/{1} {2}/{1}'.format(grid_dir, grid_fn, path, pwd)
+    s = 'ln -s {3}{0}/{1} {2}/{1}'.format(grid_dir, grid_fn, path, pwd) # Make link to grid
     (o, e) = run_cmd(s)
-    s = 'ln -s {3}{0}/{1} {2}/{1}'.format(code_dir, code_fn, path, pwd)
+    s = 'ln -s {3}{0}/{1} {2}/{1}'.format(code_dir, code_fn, path, pwd) # Make link to NTS code executable file
     (o, e) = run_cmd(s)
+
 #------------------------------------------------------#
 def main():
-    write_file(exit_fn, ['0'])
-    add_to_log('Cts = '+ str(Cts))
+    '''
+    Main function
+    :return: no return
+    '''
+    write_file(exit_fn, ['0']) # Initialize file for exit
+    write_log_header() # Initialize log file
+    add_to_log('Cts = '+ str(Cts)) # Add info on constants to log file
     add_to_log('Ats = '+ str(Ats))
     add_to_log('Csss = '+ str(Csss))
     add_to_log('a2s = '+ str(a2s))
     a2 = a2s[0]
-    i = 0
-    cmd_path = 'pwd'
+    i = 0 # Variable to count tastks started
+    cmd_path = 'pwd' # Commant to get current pwd
     (o, e) = run_cmd(cmd_path)
     pwd = o.split('\n')[0]+'/'
-    write_log_header()
     total_tasks = len(Ats) * len(Cts) * len(Csss) * len(a2s)
     add_to_log('amount of jobs = {}'.format(total_tasks))
     add_to_log('max jobs       = {}'.format(max_jobs))
-    ids = {}
-    for ct in Cts:
+    ids = {} # Initialize ids dict
+    for ct in Cts: # Nested loops over all constants
         path1 = 'Ct_=_' + str(ct)
         add_to_log('\n')
         add_to_log('----------------------------------{}% complete'.format(float(i)/float(total_tasks)*100.0))
@@ -206,21 +253,21 @@ def main():
         for at in Ats:
             path2 = '/At_=_' + str(at)
             path = path1 + path2
-            s = 'mkdir -p {}'.format(path)
+            s = 'mkdir -p {}'.format(path) # Make directories to copy base into, because Linux won't let you if the child directorieis are not there
             (o, e) = run_cmd(s)
             add_to_log('  ' + path2[1:])
             for css in Csss:
                 i += 1
                 path3 = '/Css_=_' + str(css)
                 path = path1 + path2 + path3
-                copy_data(pwd, path)
-                set_constants(path, ct, at, css, a2)
-                ids = run_job(path, pwd, ids)
-                add_to_log('    ' + path3[1:] + ', job {} out of {}'.format(i, total_tasks))
-                ids = cleanse_ids(ids)
-                while count_jobs(ids) >= max_jobs:
-                    check_exit(ids)
-                    time.sleep(check_time)
+                copy_data(pwd, path) # Make a directory for the job and copy all the data in it
+                set_constants(path, ct, at, css, a2) # Change constants in menu file to current ct, at, and css
+                ids = run_job(path, pwd, ids) # Run jobs and update ids
+                add_to_log('    ' + path3[1:] + ', job {} out of {}'.format(i, total_tasks)) # Log that the job has been run
+                ids = cleanse_ids(ids) # Chack for finished tasks and remove them from ids
+                while count_jobs(ids) >= max_jobs: # Wait for the amount of tasks started will be less than maximum allowed
+                    check_exit(ids) # Check if the user decided to end script
+                    time.sleep(check_time) # Pause for check_time amount of time
     add_to_log('Program finished')
 
 #------------------------------------------------------#

@@ -247,8 +247,8 @@ def main():
     for ct in Cts: # Nested loops over all constants
         path1 = 'Ct_=_' + str(ct)
         add_to_log('\n')
-        add_to_log('----------------------------------{}% complete'.format(float(i)/float(total_tasks)*100.0))
-        add_to_log('\n')
+        add_to_log('----------------------------------{}% complete\n'.format(float(i)/float(total_tasks)*100.0))
+        add_to_log(' ')
         add_to_log(path1)
         for at in Ats:
             path2 = '/At_=_' + str(at)
@@ -268,6 +268,7 @@ def main():
                 while count_jobs(ids) >= max_jobs: # Wait for the amount of tasks started will be less than maximum allowed
                     check_exit(ids) # Check if the user decided to end script
                     time.sleep(check_time) # Pause for check_time amount of time
+    add_to_log(' ')
     add_to_log('Program finished')
 
 #------------------------------------------------------#

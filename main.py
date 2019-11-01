@@ -15,10 +15,16 @@ def get_datetime():
     return str(dt.now())[:-7].replace(' ', '_')
 #----------------------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------Constant-Values---------------------------------------------------------#
-Cts  = [15.0, 4.0, 3.5, 3.0, 4.0]#[3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
-Ats  = [9.0, 6.0, 2.222]#[1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
-Csss = [0.5, 1.0, 1.5]#, 2.0, 2.5, 3.0]
-a2s  = [0.45]
+# Cts  = [3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
+# Ats  = [1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+# Csss = [0.5, 1.0, 1.5, 2.0, 2.5, 3.0]
+# a2s  = [0.4, 0.5, 0.6, 0.7]
+
+Cts  = [3.0, 4.0]#, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0, 12.0, 13.0, 14.0, 15.0]
+Ats  = [1.0, 2.0]#, 3.0, 4.0, 5.0, 6.0, 7.0, 8.0, 9.0, 10.0, 11.0]
+Csss = [0.5, 1.0]#, 1.5, 2.0, 2.5, 3.0]
+a2s  = [0.4, 0.5]#, 0.6, 0.7]
+
 #----------------------------------------------------------------------------------------------------------------------------------#
 #----------------------------------------------------------Filenames-and-other-constants-------------------------------------------#
 #----------------------------------------------------------------and-magic-numbers-------------------------------------------------#
@@ -252,22 +258,25 @@ def main():
         add_to_log(path1)
         for at in Ats:
             path2 = '/At_=_' + str(at)
-            path = path1 + path2
-            s = 'mkdir -p {}'.format(path) # Make directories to copy base into, because Linux won't let you if the child directorieis are not there
-            (o, e) = run_cmd(s)
             add_to_log('  ' + path2[1:])
             for css in Csss:
-                i += 1
                 path3 = '/Css_=_' + str(css)
                 path = path1 + path2 + path3
-                copy_data(pwd, path) # Make a directory for the job and copy all the data in it
-                set_constants(path, ct, at, css, a2) # Change constants in menu file to current ct, at, and css
-                ids = run_job(path, pwd, ids) # Run jobs and update ids
-                add_to_log('    ' + path3[1:] + ', job {} out of {}'.format(i, total_tasks)) # Log that the job has been run
-                ids = cleanse_ids(ids) # Chack for finished tasks and remove them from ids
-                while count_jobs(ids) >= max_jobs: # Wait for the amount of tasks started will be less than maximum allowed
-                    check_exit(ids) # Check if the user decided to end script
-                    time.sleep(check_time) # Pause for check_time amount of time
+                s = 'mkdir -p {}'.format(path)  # Make directories to copy base into, because Linux won't let you if the child directorieis are not there
+                add_to_log('    ' + path3[1:])
+                (o, e) = run_cmd(s)
+                for a2 in a2s:
+                    i += 1
+                    path4 = '/a2_=_' + str(a2)
+                    path = path1 + path2 + path3 + path4
+                    copy_data(pwd, path) # Make a directory for the job and copy all the data in it
+                    set_constants(path, ct, at, css, a2) # Change constants in menu file to current ct, at, and css
+                    ids = run_job(path, pwd, ids) # Run jobs and update ids
+                    add_to_log('      ' + path4[1:] + ', job {} out of {}'.format(i, total_tasks)) # Log that the job has been run
+                    ids = cleanse_ids(ids) # Chack for finished tasks and remove them from ids
+                    while count_jobs(ids) >= max_jobs: # Wait for the amount of tasks started will be less than maximum allowed
+                        check_exit(ids) # Check if the user decided to end script
+                        time.sleep(check_time) # Pause for check_time amount of time
     add_to_log(' ')
     add_to_log('Program finished')
 
